@@ -130,6 +130,16 @@ function isAbsoluteURL(url: string): boolean {
   return /^https?:\/\//.test(url);
 }
 
+/**
+ * Percent-encode a social image URL. Quartz slugs keep Unicode, which is a
+ * valid filename but not a valid URL. Crawlers such as Facebook's refuse an
+ * `og:image` that still contains those characters. `URL` encodes once and
+ * leaves an already-encoded URL unchanged.
+ */
+export function encodeOgImageUrl(url: string): string {
+  return new URL(url).href;
+}
+
 function formatDate(d: Date, locale: string = "en-US"): string {
   return d.toLocaleDateString(locale, {
     year: "numeric",
@@ -804,16 +814,18 @@ export const CustomOgImages: QuartzEmitterPlugin<Partial<SocialImageOptions>> = 
             let userDefinedOgImagePath = pageData.frontmatter?.socialImage;
 
             if (userDefinedOgImagePath) {
-              userDefinedOgImagePath = isAbsoluteURL(userDefinedOgImagePath)
-                ? userDefinedOgImagePath
-                : `https://${baseUrl}/static/${userDefinedOgImagePath}`;
+              userDefinedOgImagePath = encodeOgImageUrl(
+                isAbsoluteURL(userDefinedOgImagePath)
+                  ? userDefinedOgImagePath
+                  : `https://${baseUrl}/static/${userDefinedOgImagePath}`,
+              );
             }
 
             const generatedExt = ogImageOutput(fullOptions.imageFormat).ext;
             const generatedOgImagePath = isRealFile
-              ? `https://${baseUrl}/${pageData.slug!}-og-image${generatedExt}`
+              ? encodeOgImageUrl(`https://${baseUrl}/${pageData.slug!}-og-image${generatedExt}`)
               : undefined;
-            const defaultOgImagePath = `https://${baseUrl}/static/og-image.png`;
+            const defaultOgImagePath = encodeOgImageUrl(`https://${baseUrl}/static/og-image.png`);
             const ogImagePath =
               userDefinedOgImagePath ?? generatedOgImagePath ?? defaultOgImagePath;
             const imageMimeType = ogImageMimeType(ogImagePath);
